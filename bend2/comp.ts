@@ -118,6 +118,20 @@ type Chain = [HTerm, number | null][];
 
 type Leaf = [HTerm, number, number, number];
 
+type MatchPlan = {
+  all: HAll;
+  adt: HAdt;
+  ret: HTerm;
+  word: boolean;
+  ls: Chain | null;
+  ws: Leaf[] | null;
+  tb: Chain | null;
+  arms: [Bend.Name, HTerm][];
+  end: HTerm;
+  id: number | null;
+  total: number;
+};
+
 type Call = {
   k: Bend.Name;
   args: HTerm[];
@@ -2742,7 +2756,7 @@ function lits_cond(w: string, j: number, n: number): string {
 }
 
 // One plan for both match emitters: Nat chain, word leaves, constant table.
-function match_plan(fl: File, x: HTerm, ty: HTerm | null) {
+function match_plan(fl: File, x: HTerm, ty: HTerm | null): MatchPlan {
   const all = ty_all(fl.book, ty) ?? die("an untyped match");
   const adt = adt_of(fl.book, all.A), ret = all.B(DUMMY);
   const word = WORDS[adt.k] === W32;
