@@ -2741,22 +2741,30 @@ function lits_cond(w: string, j: number, n: number): string {
   return j === 32 ? `${w} == ${n}` : `(${w} & ${2 ** j - 1}) == ${n}`;
 }
 
+// One plan for both match emitters: Nat chain, word leaves, constant table.
+function match_plan(fl: File, x: HTerm, ty: HTerm | null) {
+  const all = ty_all(fl.book, ty) ?? die("an untyped match");
+  const adt = adt_of(fl.book, all.A), ret = all.B(DUMMY);
+  const word = WORDS[adt.k] === W32;
+  const ls = adt.k === "Nat" ? emit_nats(x) : null;
+  const ws = word ? emit_lits(x) : null;
+  const tb = ls ?? (adt.k === "U32" ? lits_rows(fl, ws!, ret) : null);
+  const { arms, end } = mat_arms(x);
+  return { all, adt, ret, word, ls, ws, tb, arms, end,
+    id: tb === null ? null : emit_tab(fl, tb, ret),
+    total: Bend.book_adt(fl.book, adt, Bend.Emp()).c.length };
+}
+
 function emit_match(fl: File, x: Of<"Mat"> | Of<"Efq">,
   ty: HTerm | null, ers: HTerm[], args: Val[], dst: Dst): void {
   if (x.$ === "Efq") {
     return emit_stuck(fl);
   }
   const rest = args.slice(1);
-  const all = ty_all(fl.book, ty) ?? die("an untyped match");
-  const adt = adt_of(fl.book, all.A);
-  const word = WORDS[adt.k] === W32;
+  const { all, adt, ret, word, ls, ws, tb, id, arms, end, total }
+    = match_plan(fl, x, ty);
   const lay = word ? lay_node(fl.book, adt.k) : lay_of(fl.book, all.A);
   const u = val_hold(fl, val_to(fl, args[0], word ? W32 : lay), "s");
-  const ret = all.B(DUMMY);
-  const ls = adt.k === "Nat" ? emit_nats(x) : null;
-  const ws = word ? emit_lits(x) : null;
-  const tb = ls ?? (adt.k === "U32" ? lits_rows(fl, ws!, ret) : null);
-  const id = tb === null ? null : emit_tab(fl, tb, ret);
   if (id !== null) {
     bind_dead(fl, []);
     return emit_put(fl, dst, val_new(
@@ -2764,8 +2772,6 @@ function emit_match(fl: File, x: Of<"Mat"> | Of<"Efq">,
       lay_of(fl.book, ret)));
   }
   const sw = u.ws[0];
-  const total = Bend.book_adt(fl.book, adt, Bend.Emp()).c.length;
-  const { arms, end } = mat_arms(x);
   const lv: Level[] = ls !== null
     ? ls.map(([h, n], i): Level => [`${sw} == ${i}`, h, () =>
       n === null ? [] : [val_new([`(${sw} - ${n})`], lay)]])
@@ -3177,20 +3183,12 @@ function js_func(fl: File, tm: HTerm, ty0: HTerm | null,
     }
     const s = emit_alias(fl, args[0], "$t");
     const rest = args.slice(1);
-    const all = ty_all(fl.book, ty) ?? die("an untyped match");
-    const adt = adt_of(fl.book, all.A);
-    const { arms, end } = mat_arms(x);
-    const total = Bend.book_adt(fl.book, adt, Bend.Emp()).c.length;
+    const { adt, ls, ws, tb, id, arms, end, total } = match_plan(fl, x, ty);
     if (adt.k === "IO.OP") {
       block(fl, "if (" + s + ".$ === \"$FFI\") {", () => {
         file_push(fl, "throw " + s + ";");
       });
     }
-    const ret = all.B(DUMMY);
-    const ls = adt.k === "Nat" ? emit_nats(x) : null;
-    const ws = WORDS[adt.k] === W32 ? emit_lits(x) : null;
-    const tb = ls ?? (adt.k === "U32" ? lits_rows(fl, ws!, ret) : null);
-    const id = tb === null ? null : emit_tab(fl, tb, ret);
     if (id !== null) {
       return file_push(fl, `return TAB_${id}[Math.min(Number(${s}), ${
         tb!.length - 1})];`);
