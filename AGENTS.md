@@ -14,6 +14,7 @@ lines its run must print, and the gates run on the mini cluster.
     bend2/base.bend     the base library
     bend2/bend.lean     the core, mechanized in Lean
     bend2/effs/         IO effect sources per backend; related effects may share
+                        (stdout write/print, and print_err on JS, share print.*)
     bend2/pack/         package.json, tsconfig.json, bun.lock
     bend2/docs/         the papers' Typst sources, the film, gen_pins.ts (the
                         record pins on this Mac), gen_charts.ts (the landing

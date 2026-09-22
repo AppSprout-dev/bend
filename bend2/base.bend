@@ -176,12 +176,12 @@ def IO.print(text: String) -> IO(Unit):
   import "./effs/print.js"
 
 def IO.write(text: String) -> IO(Unit):
-  import "./effs/write.c"
-  import "./effs/write.js"
+  import "./effs/print.c"
+  import "./effs/print.js"
 
 def IO.print_err(text: String) -> IO(Unit):
   import "./effs/print_err.c"
-  import "./effs/print_err.js"
+  import "./effs/print.js"
 
 def IO.get_env(name: String) -> IO(Result<&1, &1, U32 & String, String>):
   import "./effs/get_env.c"
