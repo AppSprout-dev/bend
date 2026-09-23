@@ -2085,13 +2085,6 @@ law Nat.read.go:
   for +acc : Nat
   Maybe<&2, Nat>
 
-def Nat.read.max() -> Nat:
-  Nat.mul(U32.to_nat(16777215), U32.to_nat(16777217))
-
-def Nat.read.fit(acc: Nat, qr: Nat & Nat) -> Bool:
-  (q, r) = qr
-  Bool.not(Nat.is_lt(q, acc))
-
 def Nat.read.if(t: String, acc: Nat, d: U32, ok: Bool) -> Maybe<&2, Nat>:
   match ok:
     case True{}:
@@ -2105,15 +2098,61 @@ def Nat.read.go(s, acc):
       Some{acc}
     case SCon{Chr{x}, t}:
       +d = U32.sub(x, 48)
-      Nat.read.if(t, acc, d, Bool.and(U32.is_lt(d, 10), Nat.read.fit(acc,
-        Nat.divmod(Nat.sub(Nat.read.max(), U32.to_nat(d)), 10n))))
+      Nat.read.if(t, acc, d, U32.is_lt(d, 10))
 
-def Nat.read(s: String) -> Maybe<&2, Nat>:
+# 2^48-1 is fifteen digits, so the bound is that text. Fewer digits are
+# below it, more are above it, and fifteen compare as text. A law that
+# reads "7" never builds the unary nat (each digit once divided it).
+def Nat.read.len.no(rest: Maybe<&2, Nat>) -> Maybe<&2, Nat>:
+  match rest:
+    case None{}:
+      None{}
+    case Some{n}:
+      None{}
+
+def Nat.read.len.suc(rest: Maybe<&2, Nat>) -> Maybe<&2, Nat>:
+  match rest:
+    case None{}:
+      None{}
+    case Some{n}:
+      Some{1n+n}
+
+def Nat.read.len.if(rest: Maybe<&2, Nat>, ok: Bool) -> Maybe<&2, Nat>:
+  match ok:
+    case False{}:
+      Nat.read.len.no(rest)
+    case True{}:
+      Nat.read.len.suc(rest)
+
+def Nat.read.len(s: String) -> Maybe<&2, Nat>:
   match s:
     case SNil{}:
+      Some{0n}
+    case SCon{Chr{x}, t}:
+      Nat.read.len.if(Nat.read.len(t), U32.is_lt(U32.sub(x, 48), 10))
+
+def Nat.read.under(n: Nat, s: String) -> Bool:
+  Bool.or(Nat.is_lt(n, 15n), String.is_le(s, "281474976710655"))
+
+def Nat.read.gate(+s: String, ok: Bool) -> Maybe<&2, Nat>:
+  match ok:
+    case True{}:
+      Nat.read.go(s, 0n)
+    case False{}:
       None{}
-    case SCon{h, t}:
-      Nat.read.go(SCon{h, t}, 0n)
+
+def Nat.read.pick(+s: String, got: Maybe<&2, Nat>) -> Maybe<&2, Nat>:
+  match got:
+    case None{}:
+      None{}
+    case Some{0n}:
+      None{}
+    case Some{1n+n}:
+      Nat.read.gate(s, Nat.read.under(1n+n, s))
+
+def Nat.read(s: String) -> Maybe<&2, Nat>:
+  +t = s
+  Nat.read.pick(t, Nat.read.len(t))
 
 law U32.show.go:
   for f   : Nat

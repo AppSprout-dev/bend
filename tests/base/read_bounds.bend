@@ -1,7 +1,8 @@
 # Nat.read and U32.read answer None for what the lane cannot hold:
 # Nat.read reads up to 2^48-1 (the runtime's largest immediate; 2^48 is
 # None, where a 15-digit read once fail-stopped, and a digit fuel once
-# refused the values in [10^14, 2^48-1]), U32.read
+# refused the values in [10^14, 2^48-1]). The bound is those fifteen
+# digits of text, so a checked read of "7" closes (#1008). U32.read
 # refuses a wrap past 2^32-1 (it once answered Some of the wrapped
 # word); a Nat fuel seeds through U32.to_nat; File.open("") is ENOENT
 # on every lane (the JS kit once answered EIO)
@@ -27,6 +28,24 @@ def rc(r: Result<&1, &1, U32 & String, File>) -> IO(Unit):
       File.close(f)
     case Fail{(c, m)}:
       IO.print(U32.show(c) ++ " " ++ m)
+
+law read_seven:
+  {Nat.read("7") == Some{7n} : Maybe<&2, Nat>}
+
+def read_seven():
+  {==}
+
+law read_empty:
+  {Nat.read("") == None{} : Maybe<&2, Nat>}
+
+def read_empty():
+  {==}
+
+law read_bad:
+  {Nat.read("12x") == None{} : Maybe<&2, Nat>}
+
+def read_bad():
+  {==}
 
 def main() -> IO(Unit):
   do IO<Unit>:
