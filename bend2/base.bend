@@ -2100,9 +2100,11 @@ def Nat.read.go(s, acc):
       +d = U32.sub(x, 48)
       Nat.read.if(t, acc, d, U32.is_lt(d, 10))
 
-# 2^48-1 is fifteen digits, so the bound is that text. Fewer digits are
-# below it, more are above it, and fifteen compare as text. A law that
-# reads "7" never builds the unary nat (each digit once divided it).
+# 2^48-1 is the text 281474976710655. Leading zeros are stripped, then
+# fewer than fifteen digits are in range, more are not, and fifteen
+# compare as text. A longer string can still sort before that text, so
+# the length is part of the check. A law that reads "7" never builds
+# the unary nat (each digit once divided it).
 def Nat.read.len.no(rest: Maybe<&2, Nat>) -> Maybe<&2, Nat>:
   match rest:
     case None{}:
@@ -2131,8 +2133,9 @@ def Nat.read.len(s: String) -> Maybe<&2, Nat>:
     case SCon{Chr{x}, t}:
       Nat.read.len.if(Nat.read.len(t), U32.is_lt(U32.sub(x, 48), 10))
 
-def Nat.read.under(n: Nat, s: String) -> Bool:
-  Bool.or(Nat.is_lt(n, 15n), String.is_le(s, "281474976710655"))
+def Nat.read.under(+n: Nat, s: String) -> Bool:
+  Bool.or(Nat.is_lt(n, 15n),
+    Bool.and(Nat.is_eq(n, 15n), String.is_le(s, "281474976710655")))
 
 def Nat.read.gate(+s: String, ok: Bool) -> Maybe<&2, Nat>:
   match ok:
@@ -2145,14 +2148,23 @@ def Nat.read.pick(+s: String, got: Maybe<&2, Nat>) -> Maybe<&2, Nat>:
   match got:
     case None{}:
       None{}
-    case Some{0n}:
-      None{}
-    case Some{1n+n}:
-      Nat.read.gate(s, Nat.read.under(1n+n, s))
+    case Some{n}:
+      Nat.read.gate(s, Nat.read.under(n, s))
+
+def Nat.read.trim(s: String) -> String:
+  match s:
+    case SCon{'0', t}:
+      Nat.read.trim(t)
+    case t:
+      t
 
 def Nat.read(s: String) -> Maybe<&2, Nat>:
-  +t = s
-  Nat.read.pick(t, Nat.read.len(t))
+  match s:
+    case SNil{}:
+      None{}
+    case SCon{h, t}:
+      +u = Nat.read.trim(SCon{h, t})
+      Nat.read.pick(u, Nat.read.len(u))
 
 law U32.show.go:
   for f   : Nat
