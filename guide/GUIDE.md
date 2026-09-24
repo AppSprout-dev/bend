@@ -115,7 +115,9 @@ keep Bend's proofs sound, as a function that never returns could otherwise prove
 anything. A loop bounded by the outside world, like a server's, counts down a
 `Nat` fuel argument instead, and two mutually recursive functions become one def
 with an extra argument selecting which to run. A `def` marked `@unsafe` recurses
-freely, but falls outside Bend's proof guarantees.
+freely and may call a def written below it, but falls outside Bend's proof
+guarantees. Types are not code, so the order binds only defs: two datatypes, or
+a datatype and a type-level def, may name each other in any order.
 
 A `match` inspects a parameter or a variable bound by a pattern, never a
 computed value: `match sum(xs, 0):` is rejected. Scrutinees follow binder order,
@@ -246,8 +248,10 @@ parameter accepts both: `length(&1, U32 -> U32, fs)` counts a list of closures
 just as well. A bare `a` in a parameter list is short for `-a: Quant`. Base
 declares `type List<a, -A: Kind(a)> is Kind(a)`, making a list exactly as
 reusable as its elements: `List<U32>` is short for `List<&1, U32>`, and
-`+List<U32>` for `List<&2, U32>`. A type holding two element types combines
-their quantities with `a <&> b`, the smaller of the two.
+`+List<U32>` for `List<&2, U32>`. The short form needs the type declared above
+it: a type named before its declaration spells every parameter, quantities
+included. A type holding two element types combines their quantities with
+`a <&> b`, the smaller of the two.
 
 ### Templates
 
@@ -481,14 +485,24 @@ def main() -> U32:
 ```
 
 The alias is local to the importing file, and dots inside a name are just
-characters: `U32.show` needs no module. A law left open in one file may be
-filled in another as `def M.name(..)`, so a proof can ship separately from its
-claim. `import 0x<hash>/main.bend as P` imports a package by content hash,
-fetched from the hub and checked against it; `bend main.bend --publish` uploads
-a file with everything it imports and prints that line.
+characters: `U32.show` needs no module. A module's path is plain names
+(letters, digits, `_` and `-`): `math.bend` is a module, `math.extra.bend` is
+refused. A law left open in one file may be filled in another as
+`def M.name(..)`, so a proof can ship separately from its claim.
+`import 0x<hash>/main.bend as P` imports a package by content hash, fetched
+from the hub and checked against it; `bend main.bend --publish` uploads a file
+with everything it imports and prints that line.
 `import <name>@<version>/main.bend as P` is the same package by the name
 its author gave it on the hub, with `bend main.bend --publish
 <name>@<version>` after `bend login`.
+
+A publish is public and permanent, under BendHub's terms
+(https://bend-lang.com/bender/terms#s18). Put a `LICENSE` file
+next to your entry file, ideally opening with a line like
+`SPDX-License-Identifier: MIT`; `--publish` takes every file named exactly
+`LICENSE` beside a published file, and a package without one is MIT-0. You are
+responsible for what you publish, so pick the license it may carry. Adding a
+`LICENSE` changes a package's hash: publish it as a new version.
 
 ## Tooling
 
@@ -534,6 +548,7 @@ law f:                                   # a claim, proven by def f
   exs z: C                               # a witness the proof must return
   T                                      # the claim
 @unsafe def f(x: A) -> T:                # skips the termination check
+def f?(x: A) -> T:                       # the same, as a sugar
 def e(x: A) -> IO(B):                    # a foreign effect
   import "./e.c"
   import "./e.js"
