@@ -238,9 +238,11 @@ const OPERATIONS: Record<string, Intr> = Object.setPrototypeOf({
   ...tpl_ops("f32_", "atan2",
     "f32_rewrap((f32)atan2(f32_unbox($0), f32_unbox($1)))",
     "Math.fround(Math.atan2($0, $1))"),
+  // Math.pow(1, NaN) and Math.pow(±1, ±Infinity) are NaN; libm pow returns 1.
   f32_pow: {
     C:  "f32_rewrap((f32)pow(f32_unbox($0), f32_unbox($1)))",
-    JS: "f32_pow($0, $1)",
+    JS: "($0 === 1 || ($0 === -1 && ($1 === Infinity || $1 === -Infinity))"
+      + " ? 1 : Math.fround(Math.pow($0, $1)))",
   },
   f32_mod: {
     C:  "f32_rewrap((f32)fmod(f32_unbox($0), f32_unbox($1)))",
@@ -545,13 +547,6 @@ function f32_bits(x) {
 
 function f32_from_bits(u) {
   return new Float32Array(new Uint32Array([u]).buffer)[0];
-}
-
-// Math.pow(1, y) is NaN for a NaN y, and Math.pow(±1, ±Infinity) is NaN.
-// libm pow returns 1 for those. pow(-1, NaN) stays NaN on both.
-function f32_pow(x, y) {
-  return x === 1 || (x === -1 && (y === Infinity || y === -Infinity)) ? 1
-    : Math.fround(Math.pow(x, y));
 }
 
 function f32_read(s) {
